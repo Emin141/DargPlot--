@@ -1,11 +1,15 @@
 #include <iostream>
-#include <SFML/System.hpp>
+#include "plot.h"
 
 int main(int argc, char **argv)
 {
     try
     {
-        std::cout << argv[0] << std::endl;
+        if (argc < 2)
+        {
+            throw std::runtime_error("Fatal error: too few parameters. Please specify a file to be processed.");
+        }
+        Plot::plot(argv[1]);
     }
     catch (std::exception &e)
     {
