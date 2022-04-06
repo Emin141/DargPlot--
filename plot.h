@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <bits/stdc++.h>
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
@@ -16,28 +17,30 @@
 struct AxisData
 {
     std::string name;
-    double lowerBound, upperBound, numOfValues;
+    double lowerBound, upperBound;
+    int numOfValues;
 };
 
-struct Axis {
-    sf::Vertex line[2];
-    AxisData data;
-};
+// struct Axis {
+//     sf::Vertex line[2];
+//     AxisData data;
+// };
 
 struct ColorValue
 {
-    double r, g, b;
+    std::uint8_t r, g, b;
 };
 
-static ColorValue get_viridis_color(const double t){
+static ColorValue get_viridis_color(const double t)
+{
     double r = -1075.3 * pow(t, 4) + 2798.3 * pow(t, 3) - 1797.7 * t * t + 264.69 * t + 65.689;
-	double g = -115.36 * t * t + 347.95 * t + 1.4182;
-	double b = 3580.8 * pow(t, 5) - 8436.8 * pow(t, 4) + 6989.3 * pow(t, 3) - 2765.6 * t * t + 585.16 * t + 83.295;
-    return {r, g, b};
+    double g = -115.36 * t * t + 347.95 * t + 1.4182;
+    double b = 3580.8 * pow(t, 5) - 8436.8 * pow(t, 4) + 6989.3 * pow(t, 3) - 2765.6 * t * t + 585.16 * t + 83.295;
+    return {static_cast<std::uint8_t>(r), static_cast<std::uint8_t>(g), static_cast<std::uint8_t>(b)};
 }
 
 using ZMap = std::map<std::pair<double, double>, double>;
-using HeatMap = std::pair<double, ColorValue>;
+using HeatMap = std::vector<sf::RectangleShape>;
 
 class Plot
 {
@@ -46,6 +49,8 @@ public:
     static void plot(const std::string &&filename)
     {
         parse_csv(std::move(filename));
+        assign_colors();
+        position_and_scale();
         display(std::move(filename));
     }
 
@@ -103,7 +108,6 @@ private:
 
                 m_zMap[std::pair(x, y)] = z;
 
-
                 // Now all other rows are calculated
                 while (!csv_file.eof())
                 {
@@ -113,7 +117,7 @@ private:
                     {
                         number_of_unique_y_values++;
                     }
-                    else if (fabs(x-first_x_value)> EPSILON and !number_of_unique_y_values_found)
+                    else if (fabs(x - first_x_value) > EPSILON and !number_of_unique_y_values_found)
                     {
                         number_of_unique_y_values_found = true;
                     }
@@ -131,11 +135,15 @@ private:
             // Setting up boundaries
             m_xAxisData.lowerBound = (*m_zMap.begin()).first.first;
             m_yAxisData.lowerBound = (*m_zMap.begin()).first.second;
-            m_zAxisData.lowerBound = (*m_zMap.begin()).second;
+            m_zAxisData.lowerBound = (std::min_element(m_zMap.begin(), m_zMap.end(), [](const auto &l, const auto &r)
+                                                       { return l.second < r.second; }))
+                                         ->second;
 
             m_xAxisData.upperBound = (*m_zMap.rbegin()).first.first;
             m_yAxisData.upperBound = (*m_zMap.rbegin()).first.second;
-            m_zAxisData.upperBound = (*m_zMap.rbegin()).second;
+            m_zAxisData.upperBound = (std::max_element(m_zMap.begin(), m_zMap.end(), [](const auto &l, const auto &r)
+                                                       { return l.second < r.second; }))
+                                         ->second;
 
             m_xAxisData.numOfValues = m_zMap.size() / number_of_unique_y_values;
             m_yAxisData.numOfValues = number_of_unique_y_values;
@@ -146,25 +154,77 @@ private:
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++ */
+    /*              assign colors                 */
+    /* ++++++++++++++++++++++++++++++++++++++++++ */
+    static void assign_colors()
+    {
+        m_heatMap.resize(m_zMap.size());
+
+        int index = 0;
+        for (auto &[arg, z] : m_zMap)
+        {
+            double t = z / (m_zAxisData.upperBound - m_zAxisData.lowerBound);
+            ColorValue colorValue{get_viridis_color(t)};
+            m_heatMap.at(index).setFillColor({colorValue.r, colorValue.g, colorValue.b});
+            index++;
+        }
+    }
+
+    /* ++++++++++++++++++++++++++++++++++++++++++ */
+    /*       position and scale rectangles        */
+    /* ++++++++++++++++++++++++++++++++++++++++++ */
+    static void position_and_scale()
+    {
+        sf::Vector2f tileSize{
+            800.0f / static_cast<float>(m_xAxisData.numOfValues),
+            800.0f / static_cast<float>(m_yAxisData.numOfValues)};
+        sf::Vector2f baseTilePosition{
+            50.0f + tileSize.x / 2.0f,
+            50.0f + tileSize.y / 2.0f};
+        int xOffset{0}, yOffset{0};
+
+        for (auto &tile : m_heatMap)
+        {
+            tile.setSize(tileSize);
+            tile.setOrigin({tile.getSize().x / 2.0f, tile.getSize().y / 2.0f});
+            tile.setPosition({baseTilePosition.x + xOffset * tile.getSize().x,
+                              baseTilePosition.y + yOffset * tile.getSize().y});
+            yOffset++;
+            if (yOffset % (m_yAxisData.numOfValues) == 0)
+            {
+                yOffset %= m_yAxisData.numOfValues;
+                xOffset++;
+            }
+        }
+    }
+
+    /* ++++++++++++++++++++++++++++++++++++++++++ */
     /*               display plot                 */
     /* ++++++++++++++++++++++++++++++++++++++++++ */
     static void display(const std::string &&filename)
     {
         // SFML stuff
 
-        sf::RenderWindow window{sf::VideoMode{800, 800}, filename + " plot", sf::Style::Default};
+        sf::RenderWindow window{sf::VideoMode{900, 900}, filename + " plot", sf::Style::Default};
         window.setActive();
 
-        while(window.isOpen())
+        while (window.isOpen())
         {
             window.clear(sf::Color::White);
+
             sf::Event e;
-            while(window.pollEvent(e)){
-                if(e.type == sf::Event::Closed){
+            while (window.pollEvent(e))
+            {
+                if (e.type == sf::Event::Closed)
+                {
                     window.close();
                 }
             }
-
+            // Render axis as well
+            for (auto &tile : m_heatMap)
+            {
+                window.draw(tile);
+            }
             window.display();
         }
 
