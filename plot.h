@@ -159,14 +159,17 @@ private:
     /*           fix possible error               */
     /* ++++++++++++++++++++++++++++++++++++++++++ */
     static void fix_possible_error(){
-        // Alignment error which happens on nonsquare csv files
-        if(m_zAxisData.numOfValues > (m_xAxisData.numOfValues*m_yAxisData.numOfValues)){
-            std::size_t i=0;
-            for(auto& [arg, z] : m_zMap){
-                if(i== m_zMap.size()/2){
-                    m_zMap.erase(arg);
+        if (m_zAxisData.numOfValues > (m_xAxisData.numOfValues * m_yAxisData.numOfValues))
+        {
+            int i{0};
+            for (auto it = m_zMap.begin(); it != m_zMap.end(); ++it)
+            {
+                if (i++ == (m_zAxisData.numOfValues +m_yAxisData.numOfValues)/ 2)
+                {
+                    std::cout << "Here!";
+                    m_zMap.erase(it);
+                    return;
                 }
-                i++;
             }
         }
     }
@@ -201,8 +204,8 @@ private:
             800.0f / static_cast<float>(m_xAxisData.numOfValues),
             800.0f / static_cast<float>(m_yAxisData.numOfValues)};
         sf::Vector2f baseTilePosition{
-            50.0f + tileSize.x / 2.0f,
-            50.0f + tileSize.y / 2.0f};
+            100.0f + tileSize.x / 2.0f,
+            100.0f + tileSize.y / 2.0f};
         int xOffset{0}, yOffset{0};
 
         for (auto &tile : m_heatMap)
@@ -227,7 +230,7 @@ private:
     {
         // SFML stuff
 
-        sf::RenderWindow window{sf::VideoMode{900, 900}, filename + " plot", sf::Style::Default};
+        sf::RenderWindow window{sf::VideoMode{1000, 1000}, filename + " plot", sf::Style::Default};
         window.setActive();
 
         while (window.isOpen())
