@@ -1,6 +1,6 @@
 #pragma once
 
-#define EPSILON (10e-10)
+#define EPSILON (1e-16)
 
 #include <map>
 #include <iostream>
@@ -49,6 +49,7 @@ public:
     static void plot(const std::string &&filename)
     {
         parse_csv(std::move(filename));
+        fix_possible_error();
         assign_colors();
         position_and_scale();
         display(std::move(filename));
@@ -97,14 +98,14 @@ private:
                 double x, y, z;
 
                 std::getline(csv_file, value, ',');
-                x = atof(value.c_str());
+                x = std::atof(value.c_str());
                 first_x_value = x;
 
                 std::getline(csv_file, value, ',');
-                y = atof(value.c_str());
+                y = std::atof(value.c_str());
 
                 std::getline(csv_file, value, '\n');
-                z = atof(value.c_str());
+                z = std::atof(value.c_str());
 
                 m_zMap[std::pair(x, y)] = z;
 
@@ -112,21 +113,22 @@ private:
                 while (!csv_file.eof())
                 {
                     std::getline(csv_file, value, ',');
-                    x = atof(value.c_str());
-                    if (fabs(x - first_x_value) < EPSILON and !number_of_unique_y_values_found)
-                    {
-                        number_of_unique_y_values++;
-                    }
-                    else if (fabs(x - first_x_value) > EPSILON and !number_of_unique_y_values_found)
-                    {
-                        number_of_unique_y_values_found = true;
+                    x = std::atof(value.c_str());
+                    if(!number_of_unique_y_values_found){
+                        if(fabs(x - first_x_value) < EPSILON){
+                            number_of_unique_y_values++;
+
+                        }
+                        else if (fabs(x - first_x_value) > EPSILON){
+                            number_of_unique_y_values_found = true;
+                        }
                     }
 
                     std::getline(csv_file, value, ',');
-                    y = atof(value.c_str());
+                    y = std::atof(value.c_str());
 
                     std::getline(csv_file, value, '\n');
-                    z = atof(value.c_str());
+                    z = std::atof(value.c_str());
 
                     m_zMap[std::pair(x, y)] = z;
                 }
@@ -154,6 +156,22 @@ private:
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++ */
+    /*           fix possible error               */
+    /* ++++++++++++++++++++++++++++++++++++++++++ */
+    static void fix_possible_error(){
+        // Alignment error which happens on nonsquare csv files
+        if(m_zAxisData.numOfValues > (m_xAxisData.numOfValues*m_yAxisData.numOfValues)){
+            std::size_t i=0;
+            for(auto& [arg, z] : m_zMap){
+                if(i== m_zMap.size()/2){
+                    m_zMap.erase(arg);
+                }
+                i++;
+            }
+        }
+    }
+
+    /* ++++++++++++++++++++++++++++++++++++++++++ */
     /*              assign colors                 */
     /* ++++++++++++++++++++++++++++++++++++++++++ */
     static void assign_colors()
@@ -165,7 +183,7 @@ private:
             return static_cast<double>(k * value + c);
         };
 
-        int index = 0;
+        long long index = 0;
         for (auto &[arg, z] : m_zMap)
         {
             ColorValue colorValue{get_viridis_color(affine(z))};

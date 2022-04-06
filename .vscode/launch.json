@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/dargplot",
-            "args": ["data.csv"],
+            "args": ["test.csv"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],

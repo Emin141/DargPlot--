@@ -11,7 +11,7 @@
                 "-Wall",
                 "-Werror",
                 "-g",
-                "*.cpp",
+                "main.cpp",
                 "-o",
                 "dargplot",
                 "-lsfml-window",
