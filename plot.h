@@ -159,12 +159,16 @@ private:
     static void assign_colors()
     {
         m_heatMap.resize(m_zMap.size());
+        auto affine = [&](double value){
+            static double k = 1.0f / (m_zAxisData.upperBound - m_zAxisData.lowerBound);
+            static double c = -k * m_zAxisData.lowerBound;
+            return static_cast<double>(k * value + c);
+        };
 
         int index = 0;
         for (auto &[arg, z] : m_zMap)
         {
-            double t = z / (m_zAxisData.upperBound - m_zAxisData.lowerBound);
-            ColorValue colorValue{get_viridis_color(t)};
+            ColorValue colorValue{get_viridis_color(affine(z))};
             m_heatMap.at(index).setFillColor({colorValue.r, colorValue.g, colorValue.b});
             index++;
         }
