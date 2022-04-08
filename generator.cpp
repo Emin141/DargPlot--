@@ -20,11 +20,11 @@ int main(int argc, char **argv){
         file << "x,y,z\n";
         auto z = [](double x, double y){
             double r = std::sqrt(x * x + y * y);
-            return std::sin(5.f*r)/r;
+            return std::sin(0.7f*r)/r;
             };
 
-        for(double i=-10.0f; i<=10.0f; i+=0.03){
-            for(double j=-10.0f; j<=10.0f; j+=0.03){
+        for(double i=-10.0f; i<=10.0f; i+=0.02){
+            for(double j=-10.0f; j<=10.0f; j+=0.02){
                 file << i << "," << j << "," << z(i,j) << "\n";
             }
         }

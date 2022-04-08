@@ -12,6 +12,7 @@
                 "-Werror",
                 "-g",
                 "main.cpp",
+                "plot.cpp",
                 "-o",
                 "dargplot",
                 "-lsfml-window",
