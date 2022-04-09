@@ -7,6 +7,8 @@
 #include <bits/stdc++.h>
 
 #include <SFML/Window.hpp>
+#include <SFML/System.hpp>
+#include <X11/Xlib.h>
 
 struct ColorValue
 {
@@ -23,19 +25,13 @@ static ColorValue get_viridis_color(const double t)
 
 void Plot::plot(const std::string &&filename)
 {
-    try
-    {
-        parse_csv(std::move(filename));
-        fix_possible_error();
-        assign_colors();
-        position_and_scale();
-        draw_axis_data();
-        display(std::move(filename));
-    }
-    catch (const std::exception &e)
-    {
-        throw e;
-    }
+    XInitThreads();
+    parse_csv(std::move(filename));
+    fix_possible_error();
+    assign_colors();
+    position_and_scale();
+    draw_axis_data();
+    display(std::move(filename));
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++ */
@@ -209,15 +205,15 @@ void Plot::draw_axis_data()
     auto shared_setup = [&](Axis &axis)
     {
         // Title
-        axis.text.push_back({axis.data.name, m_font, 48});
+        axis.text.push_back({axis.data.name, m_font, 32});
         // TODO: custom number of divisions
         // Five divisions
         double step = (axis.data.upperBound - axis.data.lowerBound) / 5.0f;
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i <= 5; i++)
         { // max value may not be correct?
             std::stringstream value{};
             value << std::setprecision(2) << (axis.data.lowerBound + step * i);
-            axis.text.push_back({value.str(), m_font, 48});
+            axis.text.push_back({value.str(), m_font, 32});
         }
         for (auto &text : axis.text)
         {
@@ -239,7 +235,7 @@ void Plot::draw_axis_data()
     for(auto it = ++m_xAxis.text.begin(); it != m_xAxis.text.end(); ++it)
     {
         it->setPosition(50.0f, 100.0f + offset);
-        offset += 200.0f;
+        offset += 160.0f;
     }
 
 
@@ -248,7 +244,41 @@ void Plot::draw_axis_data()
     for(auto it = ++m_yAxis.text.begin(); it != m_yAxis.text.end(); ++it)
     {
         it->setPosition(100.0f + offset, 950.0f);
-        offset += 200.0f;
+        offset += 160.0f;
+    }
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++ */
+/*                draw legend                 */
+/* ++++++++++++++++++++++++++++++++++++++++++ */
+void Plot::draw_legend() noexcept{
+    // Legends window
+    sf::RenderWindow legend{sf::VideoMode{300, 1000}, m_zAxis.data.name + " legend", sf::Style::Default};
+    legend.setPosition({1000, 0});
+    legend.clear(sf::Color::White);
+    for(double i=0; i<=100; i+=1.0f){
+        sf::RectangleShape gradientLine{{50.0f, 8.0f}};
+        gradientLine.setPosition(50.0f, 100.0f + 8.0f*static_cast<float>(i));
+        auto [r, g, b] = get_viridis_color(i/100.0f);
+        gradientLine.setFillColor(sf::Color{r, g, b});
+        legend.draw(gradientLine);
+    }
+    double offset{0.0f};
+    m_zAxis.text.at(0).setPosition(200.0f, 50.0f);
+    legend.draw(m_zAxis.text.at(0));
+    for(auto it=++m_zAxis.text.begin(); it!=m_zAxis.text.end(); ++it){
+        it->setPosition(200.0f, 100.0f + offset);
+        legend.draw(*it);
+        offset += 160.0f;
+    }
+    legend.display();
+    while(legend.isOpen()){
+        sf::Event e;
+        while(legend.pollEvent(e)){
+            if(e.type == sf::Event::Closed){
+                legend.close();
+            }
+        }        
     }
 }
 
@@ -258,8 +288,11 @@ void Plot::draw_axis_data()
 void Plot::display(const std::string &&filename) noexcept
 {
     // SFML stuff
+    sf::Thread legendThread{draw_legend};
+    legendThread.launch();
 
     sf::RenderWindow window{sf::VideoMode{1000, 1000}, filename + " plot", sf::Style::Default};
+    window.setPosition({0, 0});
     window.setActive();
 
     // Plot title
@@ -274,28 +307,6 @@ void Plot::display(const std::string &&filename) noexcept
         bounds.top + bounds.height / 2.0f);
     title.setPosition(500.0f, 50.0f);
 
-    // Legends window
-    sf::RenderWindow legend{sf::VideoMode{300, 1000}, m_zAxis.data.name + " legend", sf::Style::Default};
-    legend.setPosition({
-        window.getPosition().x + static_cast<int>(window.getSize().x),
-        legend.getPosition().y
-    });
-        legend.clear(sf::Color::White);
-    for(double i=0; i<100; i+=1.0f){
-        sf::RectangleShape gradientLine{{50.0f, 8.0f}};
-        gradientLine.setPosition({50.0f, 100.0f + 8.0f*static_cast<float>(i)});
-        auto [r, g, b] = get_viridis_color(i/100.0f);
-        gradientLine.setFillColor(sf::Color{r, g, b});
-        legend.draw(gradientLine);
-    }
-    double offset{0.0f};
-    for(auto it=m_zAxis.text.begin(); it!=m_zAxis.text.end(); ++it){
-        it->setPosition(200.0f, 100.0f + offset);
-        legend.draw(*it);
-        offset += 200.0f;
-    }
-    legend.display();
-    legend.setActive(false);
 
     while (window.isOpen())
     {
@@ -325,4 +336,6 @@ void Plot::display(const std::string &&filename) noexcept
         }
         window.display();
     }
+
+    legendThread.terminate();
 }

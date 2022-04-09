@@ -47,5 +47,6 @@ private:
     static void assign_colors() noexcept;
     static void position_and_scale() noexcept;
     static void draw_axis_data();
+    static void draw_legend() noexcept;
     static void display(const std::string &&filename) noexcept;
 };
